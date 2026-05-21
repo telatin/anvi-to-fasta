@@ -3,8 +3,66 @@
 ## Supports contigs-db and profile-db. Opening a database validates both
 ## the db_type field (guards against swapped arguments) and the schema
 ## version (warns when an untested version is encountered).
+##
+## Uses direct bindings to the system libsqlite3 rather than a bundled copy,
+## which avoids global-state conflicts when multiple databases are open.
 
-import niqlite, strutils, sequtils
+import strutils, sequtils
+
+# ---------------------------------------------------------------------------
+# System libsqlite3 bindings
+# ---------------------------------------------------------------------------
+
+{.compile: "sqlite3.c".}
+
+type
+  DbConn   = pointer   # sqlite3*
+  StmtPtr  = pointer   # sqlite3_stmt*
+
+const
+  SQLITE_OK*   = 0.cint
+  SQLITE_ROW*  = 100.cint
+  SQLITE_DONE* = 101.cint
+
+proc sqlite3_open(filename: cstring, ppDb: ptr DbConn): cint
+    {.importc, cdecl.}
+proc sqlite3_close(db: DbConn): cint
+    {.importc, cdecl.}
+proc sqlite3_prepare_v2(db: DbConn, sql: cstring, nByte: cint,
+                        ppStmt: ptr StmtPtr, pzTail: ptr cstring): cint
+    {.importc, cdecl.}
+proc sqlite3_step(stmt: StmtPtr): cint
+    {.importc, cdecl.}
+proc sqlite3_finalize(stmt: StmtPtr): cint
+    {.importc, cdecl.}
+proc sqlite3_column_text(stmt: StmtPtr, col: cint): cstring
+    {.importc, cdecl.}
+proc sqlite3_column_int(stmt: StmtPtr, col: cint): cint
+    {.importc, cdecl.}
+proc sqlite3_errmsg(db: DbConn): cstring
+    {.importc, cdecl.}
+
+# ---------------------------------------------------------------------------
+# Thin wrappers (keep SQL strings alive across calls)
+# ---------------------------------------------------------------------------
+
+proc dbOpen(path: string): DbConn =
+  var conn: DbConn
+  let pathBuf = path           # keep string alive for cstring pointer
+  if sqlite3_open(pathBuf.cstring, addr conn) != SQLITE_OK:
+    stderr.writeLine("Error: cannot open database: " & path)
+    quit(1)
+  conn
+
+proc stmtPrepare(conn: DbConn, sql: string): StmtPtr =
+  var stmt: StmtPtr
+  let sqlBuf = sql             # keep string alive for cstring pointer
+  if sqlite3_prepare_v2(conn, sqlBuf.cstring, -1.cint,
+                        addr stmt, nil) != SQLITE_OK:
+    stderr.writeLine("Error: failed to prepare SQL: " & sql)
+    stderr.writeLine("SQLite error: " & $sqlite3_errmsg(conn))
+    quit(1)
+  stmt
 
 # ---------------------------------------------------------------------------
 # Types
@@ -16,14 +74,14 @@ type
     dkProfile = "profile"
 
   AnvioDb* = object
-    path*: string
-    kind*: DbKind
+    path*:    string
+    kind*:    DbKind
     version*: int
-    db*: SqliteDatabase
+    conn*:    DbConn
 
   CollectionInfo* = object
-    name*: string
-    numBins*: int
+    name*:     string
+    numBins*:  int
     binNames*: seq[string]
 
 # ---------------------------------------------------------------------------
@@ -67,27 +125,32 @@ proc openAnvioDb*(path: string, expectedKind: DbKind): AnvioDb =
   ## Exits with an error message when the db_type does not match.
   ## Prints a warning (and continues) when the version is not in the
   ## tested list.
-  let db = niqlite.newSqliteDatabase(path)
+  let conn = dbOpen(path)
 
   var foundKind: DbKind
   var foundVersion: int
 
-  var stmt = db.newSqliteStatement(
-    "SELECT key, value FROM self WHERE key IN ('db_type', 'version')")
-  while stmt.step() == SQLITE_ROW:
-    case stmt.columnText(0)
+  let sql  = "SELECT key, value FROM self WHERE key IN ('db_type', 'version')"
+  let stmt = stmtPrepare(conn, sql)
+  while sqlite3_step(stmt) == SQLITE_ROW:
+    let key = $sqlite3_column_text(stmt, 0)
+    let val = $sqlite3_column_text(stmt, 1)
+    case key
     of "db_type":
-      let t = stmt.columnText(1)
-      case t
+      case val
       of "contigs": foundKind = dkContigs
       of "profile": foundKind = dkProfile
       else:
-        stderr.writeLine("Error: unknown db_type '" & t & "' in " & path)
+        discard sqlite3_finalize(stmt)
+        discard sqlite3_close(conn)
+        stderr.writeLine("Error: unknown db_type '" & val & "' in " & path)
         quit(1)
     of "version":
-      foundVersion = parseInt(stmt.columnText(1))
+      foundVersion = parseInt(val)
+  discard sqlite3_finalize(stmt)
 
   if foundKind != expectedKind:
+    discard sqlite3_close(conn)
     stderr.writeLine("Error: expected a '" & $expectedKind &
                      "' database but '" & path &
                      "' has db_type='" & $foundKind & "'.")
@@ -104,7 +167,7 @@ proc openAnvioDb*(path: string, expectedKind: DbKind): AnvioDb =
                      formatVersionList(supported) &
                      ". Proceeding, but results may be unexpected.")
 
-  AnvioDb(path: path, kind: foundKind, version: foundVersion, db: db)
+  AnvioDb(path: path, kind: foundKind, version: foundVersion, conn: conn)
 
 proc openContigsDb*(path: string): AnvioDb =
   openAnvioDb(path, dkContigs)
@@ -119,31 +182,32 @@ proc openProfileDb*(path: string): AnvioDb =
 proc listCollections*(profileDb: AnvioDb): seq[CollectionInfo] =
   ## Return all collections stored in a profile database.
   result = @[]
-  var stmt = profileDb.db.newSqliteStatement(
-    "SELECT collection_name, num_bins, bin_names " &
-    "FROM collections_info ORDER BY collection_name")
-  while stmt.step() == SQLITE_ROW:
+  let sql  = "SELECT collection_name, num_bins, bin_names " &
+             "FROM collections_info ORDER BY collection_name"
+  let stmt = stmtPrepare(profileDb.conn, sql)
+  while sqlite3_step(stmt) == SQLITE_ROW:
     result.add(CollectionInfo(
-      name:     stmt.columnText(0),
-      numBins:  stmt.columnInt(1),
-      binNames: stmt.columnText(2).split(",")))
+      name:     $sqlite3_column_text(stmt, 0),
+      numBins:  sqlite3_column_int(stmt, 1).int,
+      binNames: ($sqlite3_column_text(stmt, 2)).split(",")))
+  discard sqlite3_finalize(stmt)
 
 proc hasCollection*(profileDb: AnvioDb, collection: string): bool =
-  var stmt = profileDb.db.newSqliteStatement(
-    "SELECT COUNT(*) FROM collections_info WHERE collection_name = '" &
-    sqlEsc(collection) & "'")
-  if stmt.step() == SQLITE_ROW:
-    return stmt.columnInt(0) > 0
-  false
+  let sql  = "SELECT COUNT(*) FROM collections_info WHERE collection_name = '" &
+             sqlEsc(collection) & "'"
+  let stmt = stmtPrepare(profileDb.conn, sql)
+  result = sqlite3_step(stmt) == SQLITE_ROW and
+           sqlite3_column_int(stmt, 0) > 0
+  discard sqlite3_finalize(stmt)
 
 proc hasBin*(profileDb: AnvioDb, collection, bin: string): bool =
-  var stmt = profileDb.db.newSqliteStatement(
-    "SELECT COUNT(*) FROM collections_bins_info " &
-    "WHERE collection_name = '" & sqlEsc(collection) &
-    "' AND bin_name = '" & sqlEsc(bin) & "'")
-  if stmt.step() == SQLITE_ROW:
-    return stmt.columnInt(0) > 0
-  false
+  let sql  = "SELECT COUNT(*) FROM collections_bins_info " &
+             "WHERE collection_name = '" & sqlEsc(collection) &
+             "' AND bin_name = '" & sqlEsc(bin) & "'"
+  let stmt = stmtPrepare(profileDb.conn, sql)
+  result = sqlite3_step(stmt) == SQLITE_ROW and
+           sqlite3_column_int(stmt, 0) > 0
+  discard sqlite3_finalize(stmt)
 
 # ---------------------------------------------------------------------------
 # FASTA export
@@ -157,10 +221,11 @@ proc writeAllContigs*(contigsDb: AnvioDb, output: File,
     sql &= " WHERE length(sequence) >= " & $minLength
   sql &= " ORDER BY contig"
 
-  var stmt = contigsDb.db.newSqliteStatement(sql)
-  while stmt.step() == SQLITE_ROW:
-    output.writeLine(">" & prefix & stmt.columnText(0))
-    output.writeLine(wrapSequence(stmt.columnText(1)))
+  let stmt = stmtPrepare(contigsDb.conn, sql)
+  while sqlite3_step(stmt) == SQLITE_ROW:
+    output.writeLine(">" & prefix & $sqlite3_column_text(stmt, 0))
+    output.writeLine(wrapSequence($sqlite3_column_text(stmt, 1)))
+  discard sqlite3_finalize(stmt)
 
 proc writeBinContigs*(profileDb: AnvioDb, contigsDb: AnvioDb,
                       collection, bin: string, output: File,
@@ -175,25 +240,28 @@ proc writeBinContigs*(profileDb: AnvioDb, contigsDb: AnvioDb,
 
   # Attach the contigs database to the profile connection so we can join
   # across both files in one query.
-  var attachStmt = profileDb.db.newSqliteStatement(
-    "ATTACH DATABASE '" & sqlEsc(contigsDb.path) & "' AS cdb")
-  discard attachStmt.step()
+  let attachSql  = "ATTACH DATABASE '" & sqlEsc(contigsDb.path) & "' AS cdb"
+  let attachStmt = stmtPrepare(profileDb.conn, attachSql)
+  discard sqlite3_step(attachStmt)
+  discard sqlite3_finalize(attachStmt)
 
   var sql =
     "SELECT DISTINCT cs.contig, cs.sequence" &
     "  FROM collections_of_splits cos" &
-    "  JOIN cdb.splits_basic_info sbi ON cos.contig = sbi.split" &
+    "  JOIN cdb.splits_basic_info sbi ON cos.split = sbi.split" &
     "  JOIN cdb.contig_sequences  cs  ON sbi.parent = cs.contig" &
     " WHERE cos.collection_name = '" & sqlEsc(collection) & "'" &
     "   AND cos.bin_name        = '" & sqlEsc(bin)        & "'"
   if minLength > 0:
-    sql &= "   AND length(cs.sequence) >= " & $minLength
+    sql &= " AND length(cs.sequence) >= " & $minLength
   sql &= " ORDER BY cs.contig"
 
-  var stmt = profileDb.db.newSqliteStatement(sql)
-  while stmt.step() == SQLITE_ROW:
-    output.writeLine(">" & headerPrefix & stmt.columnText(0))
-    output.writeLine(wrapSequence(stmt.columnText(1)))
+  let stmt = stmtPrepare(profileDb.conn, sql)
+  while sqlite3_step(stmt) == SQLITE_ROW:
+    output.writeLine(">" & headerPrefix & $sqlite3_column_text(stmt, 0))
+    output.writeLine(wrapSequence($sqlite3_column_text(stmt, 1)))
+  discard sqlite3_finalize(stmt)
 
-  var detachStmt = profileDb.db.newSqliteStatement("DETACH DATABASE cdb")
-  discard detachStmt.step()
+  let detachStmt = stmtPrepare(profileDb.conn, "DETACH DATABASE cdb")
+  discard sqlite3_step(detachStmt)
+  discard sqlite3_finalize(detachStmt)

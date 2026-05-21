@@ -7,9 +7,10 @@ srcDir      = "src"
 bin         = @["anvi_to_fasta"]
 
 # Dependencies
-requires "nim >= 2.2.0"
-requires "niqlite >= 0.1.0"
+requires "nim >= 2.0.0"
 requires "argparse >= 4.0.0"
+# SQLite is bundled as src/sqlite3.c (public domain amalgamation).
+# No system libsqlite3 required; the binary is fully static.
 
 # Rename the binary to use the conventional hyphenated name after build.
 # nimble forbids dashes in package names but the installed binary can be named freely.
