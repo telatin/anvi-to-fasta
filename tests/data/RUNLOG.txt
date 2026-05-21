@@ -1,0 +1,54 @@
+[19 May 26 23:23:37] profiler_version .............................: 42
+[19 May 26 23:23:37] output_dir ...................................: /Users/telatina/git/barena/mini-meta/PROFILE
+[19 May 26 23:23:37] sample_id ....................................: PROFILE
+[19 May 26 23:23:37] description ..................................: None
+[19 May 26 23:23:37] profile_db ...................................: /Users/telatina/git/barena/mini-meta/PROFILE/PROFILE.db
+[19 May 26 23:23:37] merged .......................................: True
+[19 May 26 23:23:37] contigs_db_hash ..............................: hashe803c49d
+[19 May 26 23:23:37] num_runs_processed ...........................: 28
+[19 May 26 23:23:37] merged_sample_ids ............................: Sample01, Sample02, Sample03
+[19 May 26 23:23:37] fetch_filter .................................: None, None, None
+[19 May 26 23:23:37] min_percent_identity .........................: 0.0, 0.0, 0.0
+[19 May 26 23:23:37] Common layer additional data keys ............: default
+[19 May 26 23:23:37] total_reads_mapped ...........................: 200044, 200001, 200058
+[19 May 26 23:23:37] cmd_line .....................................: /Users/telatina/micromamba/envs/anvio-dev/bin/anvi-merge -c CONTIGS.db -o PROFILE aln/Sample01/PROFILE.db aln/Sample02/PROFILE.db aln/Sample03/PROFILE.db
+[19 May 26 23:23:37] clustering_performed .........................: True
+[19 May 26 23:23:37] 
+WARNING
+===============================================
+Codon frequencies were not profiled, hence, these tables will be empty in the
+merged profile database.
+
+
+[19 May 26 23:23:38] * Anvi'o hierarchical clustering of contigs...
+
+[19 May 26 23:23:38] New items order ..............................: "tnf:euclidean:ward" (type newick) has been added to the database...
+[19 May 26 23:23:38] New items order ..............................: "tnf-cov:euclidean:ward" (type newick) has been added to the database...
+[19 May 26 23:23:38] New items order ..............................: "cov:euclidean:ward" (type newick) has been added to the database...
+[19 May 26 23:23:38] * Additional data and layer orders...
+
+[19 May 26 23:23:39] 
+Layer orders added
+===============================================
+
+[19 May 26 23:23:39] * std_coverage
+
+[19 May 26 23:23:39] * mean_coverage
+
+[19 May 26 23:23:39] * mean_coverage_Q2Q3
+
+[19 May 26 23:23:39] * detection
+
+[19 May 26 23:23:39] * abundance
+
+[19 May 26 23:23:39] * variability
+
+[19 May 26 23:23:39] 
+Data groups added
+===============================================
+
+[19 May 26 23:23:39] * default (w/4 items)
+
+[19 May 26 23:23:39] * Happy 
+
+[19 May 26 23:23:39] Bye.

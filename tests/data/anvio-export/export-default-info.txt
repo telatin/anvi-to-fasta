@@ -1,0 +1,3 @@
+Bin_1	anvi-interactive	#077a7c
+Bin_2	anvi-interactive	#012f75
+Bin_3	anvi-interactive	#388902

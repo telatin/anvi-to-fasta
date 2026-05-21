@@ -1,0 +1,32 @@
+usage: anvi-export-collection [-h] -p PAN_OR_PROFILE_DB [-C COLLECTION_NAME]
+                              [-O FILENAME_PREFIX] [--list-collections]
+                              [--include-unbinned]
+
+options:
+  -h, --help            show this help message and exit
+  -p PAN_OR_PROFILE_DB, --pan-or-profile-db PAN_OR_PROFILE_DB
+                        Anvi'o pan or profile database (and even genes
+                        database in appropriate contexts). (default: None)
+  -C COLLECTION_NAME, --collection-name COLLECTION_NAME
+                        Collection name. (default: None)
+  -O FILENAME_PREFIX, --output-file-prefix FILENAME_PREFIX
+                        A prefix to be used while naming the output files. No
+                        file type extensions please; just a prefix -- all
+                        ouptut file names and extensions will be appended to
+                        this prefix. (default: None)
+  --list-collections    Show available collections and exit. (default: False)
+  --include-unbinned    When this flag is used, anvi'o will also store in the
+                        output file the items that do not appear in any of
+                        your bins. This new bin will be called
+                        'UNBINNED_ITEMS_BIN'. Yes. The ugly name is
+                        intentional. (default: False)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔥 Program description:
+
+   Export a collection from an anvi'o database
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+

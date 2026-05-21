@@ -1,0 +1,9 @@
+Command:
+anvi-export-collection -p data/PROFILE.db --list-collections
+
+Output:
+COLLECTIONS FOUND
+===============================================
+* default (3 bins, representing 15 items).
+* collection_1 (3 bins, representing 15 items).
+

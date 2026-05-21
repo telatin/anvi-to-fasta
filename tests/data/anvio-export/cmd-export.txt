@@ -1,0 +1,9 @@
+Command:
+anvi-export-collection -p data/PROFILE.db -C default -O data/anvio-export/export-default
+
+Output on console:
+Collection found .............................: "default" (15 items in 3 bins)
+Report unbinned items if there are any .......: False
+Items file path ..............................: data/anvio-export/export-default.txt
+Bins info file path ..........................: data/anvio-export/export-default-info.txt
+
