@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 env:
-  NIM_VERSION: 2.2.10
+  NIM_VERSION: 2.2.4
 
 jobs:
   build:
@@ -19,19 +19,19 @@ jobs:
         include:
           - os: ubuntu-22.04
             target: linux-x86_64
-            artifact: anvi-export-linux-x86_64
+            artifact: anvi-to-fasta-linux-x86_64
             nim_platform: linux_x64
           - os: ubuntu-22.04-arm
             target: linux-aarch64
-            artifact: anvi-export-linux-aarch64
+            artifact: anvi-to-fasta-linux-aarch64
             nim_platform: linux_arm64
           - os: macos-15
             target: macos-aarch64
-            artifact: anvi-export-macos-aarch64
+            artifact: anvi-to-fasta-macos-aarch64
             nim_platform: macosx_arm64
-          - os: macos-15-intel
+          - os: macos-13
             target: macos-x86_64
-            artifact: anvi-export-macos-x86_64
+            artifact: anvi-to-fasta-macos-x86_64
             nim_platform: macosx_x64
     steps:
       - uses: actions/checkout@v4
@@ -60,11 +60,6 @@ jobs:
           key: ${{ matrix.target }}-nimble-${{ hashFiles('*.nimble') }}
           restore-keys: ${{ matrix.target }}-nimble-
 
-      - name: Install zlib (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-
       - name: Install dependencies
         run: nimble install -d -y
 
@@ -72,7 +67,7 @@ jobs:
         run: nimble build -d:release
 
       - name: Prepare artifact
-        run: cp anvi-to-fasta ${{ matrix.artifact }}"
+        run: cp anvi-to-fasta ${{ matrix.artifact }}
 
       - name: Upload to GitHub Release
         env:
