@@ -58,7 +58,7 @@ proc main() =
     option("--min-length",       default = some("0"),
            help = "Skip contigs shorter than INT bp [default: 0]")
     option("--prefix",
-           help = "Prefix prepended to every sequence header")
+           help = "Prefix prepended to every sequence header (verbatim — include any trailing separator, e.g. --prefix mybin_)")
 
   var opts: typeof(p.parse(@[]))
   try:

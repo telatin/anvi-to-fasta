@@ -6,9 +6,6 @@ on:
 permissions:
   contents: write
 
-env:
-  NIM_VERSION: 2.2.4
-
 jobs:
   build:
     name: Build for ${{ matrix.target }}
@@ -20,38 +17,23 @@ jobs:
           - os: ubuntu-22.04
             target: linux-x86_64
             artifact: anvi-to-fasta-linux-x86_64
-            nim_platform: linux_x64
           - os: ubuntu-22.04-arm
             target: linux-aarch64
             artifact: anvi-to-fasta-linux-aarch64
-            nim_platform: linux_arm64
           - os: macos-15
             target: macos-aarch64
             artifact: anvi-to-fasta-macos-aarch64
-            nim_platform: macosx_arm64
           - os: macos-13
             target: macos-x86_64
             artifact: anvi-to-fasta-macos-x86_64
-            nim_platform: macosx_x64
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Nim
-        shell: bash
-        run: |
-          archive="nim-${NIM_VERSION}-${{ matrix.nim_platform }}.tar.xz"
-          curl --fail --location --show-error --silent \
-            "https://nim-lang.org/download/${archive}" \
-            --output "${RUNNER_TEMP}/${archive}"
-          tar -xf "${RUNNER_TEMP}/${archive}" -C "${RUNNER_TEMP}"
-          nim_dir="$(find "${RUNNER_TEMP}" -maxdepth 1 -type d -name "nim-${NIM_VERSION}*" -print -quit)"
-          if [[ -z "${nim_dir}" ]]; then
-            echo "Could not find extracted Nim ${NIM_VERSION} directory" >&2
-            exit 1
-          fi
-          echo "${nim_dir}/bin" >> "${GITHUB_PATH}"
-          "${nim_dir}/bin/nim" --version
-          "${nim_dir}/bin/nimble" --version
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: '2.2.4'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Cache nimble packages
         uses: actions/cache@v4

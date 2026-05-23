@@ -4,8 +4,8 @@
 ## the db_type field (guards against swapped arguments) and the schema
 ## version (warns when an untested version is encountered).
 ##
-## Uses direct bindings to the system libsqlite3 rather than a bundled copy,
-## which avoids global-state conflicts when multiple databases are open.
+## Compiles the bundled sqlite3 amalgamation (sqlite3.c) for a single-binary
+## distribution with no runtime library dependency.
 
 import strutils, sequtils
 
@@ -182,14 +182,17 @@ proc openProfileDb*(path: string): AnvioDb =
 proc listCollections*(profileDb: AnvioDb): seq[CollectionInfo] =
   ## Return all collections stored in a profile database.
   result = @[]
-  let sql  = "SELECT collection_name, num_bins, bin_names " &
-             "FROM collections_info ORDER BY collection_name"
+  let sql  = "SELECT collection_name, bin_name " &
+             "FROM collections_bins_info ORDER BY collection_name, bin_name"
   let stmt = stmtPrepare(profileDb.conn, sql)
   while sqlite3_step(stmt) == SQLITE_ROW:
-    result.add(CollectionInfo(
-      name:     $sqlite3_column_text(stmt, 0),
-      numBins:  sqlite3_column_int(stmt, 1).int,
-      binNames: ($sqlite3_column_text(stmt, 2)).split(",")))
+    let colName = $sqlite3_column_text(stmt, 0)
+    let binName = $sqlite3_column_text(stmt, 1)
+    if result.len > 0 and result[^1].name == colName:
+      result[^1].binNames.add(binName)
+      inc result[^1].numBins
+    else:
+      result.add(CollectionInfo(name: colName, numBins: 1, binNames: @[binName]))
   discard sqlite3_finalize(stmt)
 
 proc hasCollection*(profileDb: AnvioDb, collection: string): bool =

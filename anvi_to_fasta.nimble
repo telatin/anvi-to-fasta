@@ -1,5 +1,5 @@
 # Package
-version     = "0.1.0"
+version     = "0.1.1"
 author      = "telatina"
 description = "Export contigs and bins from anvi'o databases as FASTA"
 license     = "GPL-3.0"
